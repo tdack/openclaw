@@ -71,6 +71,8 @@ function nextPollMs(current: number, hadActivity: boolean): number {
 
 /** Maximum pages fetched per convo per poll cycle to bound API cost on very active convos. */
 const MAX_FETCH_PAGES = 20;
+/** Maximum pages fetched from listConvos per poll cycle (30 convos/page → up to 300 conversations). */
+const MAX_LIST_PAGES = 10;
 
 /**
  * Fetch all messages in a conversation that are newer than the tracked rev.
@@ -129,6 +131,57 @@ async function fetchNewMessages(
   return results.toReversed();
 }
 
+/**
+ * Fetch all conversations by following the listConvos cursor.
+ *
+ * During poll cycles (lastRev provided), the API returns conversations in
+ * most-recently-active order. When a full page contains only conversations
+ * whose rev is at or before the watermark, all further pages will be older
+ * still and we stop early to avoid unnecessary API calls.
+ *
+ * During the seed phase (lastRev === null), always paginate fully so every
+ * existing conversation is watermarked before the poll loop starts.
+ */
+async function fetchAllConvos(
+  agent: BskyAgent,
+  lastRev: Map<string, string> | null,
+): Promise<ConvoView[]> {
+  const allConvos: ConvoView[] = [];
+  let cursor: string | undefined;
+
+  for (let page = 0; page < MAX_LIST_PAGES; page++) {
+    const data = await chatApiGet<ListConvosResponse>(agent, LXM_LIST_CONVOS, {
+      limit: 30,
+      ...(cursor ? { cursor } : {}),
+    });
+
+    allConvos.push(...data.convos);
+
+    // During poll cycles: stop early if every convo on this page is unchanged —
+    // older pages will be even staler.
+    if (lastRev !== null) {
+      const allStale = data.convos.every((convo) => {
+        const msg = convo.lastMessage;
+        if (!msg || !("rev" in msg) || !msg.rev) {
+          return true;
+        }
+        const prev = lastRev.get(convo.id);
+        return prev !== undefined && msg.rev <= prev;
+      });
+      if (allStale) {
+        break;
+      }
+    }
+
+    if (!data.cursor) {
+      break;
+    }
+    cursor = data.cursor;
+  }
+
+  return allConvos;
+}
+
 export type PollCallbacks = {
   onMessage: (msg: InboundMessage) => Promise<void>;
   onError?: (err: Error, context: string) => void;
@@ -161,8 +214,8 @@ export async function runBlueSkyPollLoop(params: {
 
   // --- Seed phase: snapshot current convo state without dispatching ---
   try {
-    const seedData = await chatApiGet<ListConvosResponse>(agent, LXM_LIST_CONVOS, { limit: 50 });
-    for (const convo of seedData.convos) {
+    const seedConvos = await fetchAllConvos(agent, null);
+    for (const convo of seedConvos) {
       const msg = convo.lastMessage;
       if (msg && "rev" in msg && msg.rev) {
         lastRev.set(convo.id, msg.rev);
@@ -197,9 +250,9 @@ export async function runBlueSkyPollLoop(params: {
       let hadActivity = false;
 
       try {
-        const data = await chatApiGet<ListConvosResponse>(agent, LXM_LIST_CONVOS, { limit: 30 });
+        const convos = await fetchAllConvos(agent, lastRev);
 
-        for (const convo of data.convos) {
+        for (const convo of convos) {
           const msg = convo.lastMessage;
           if (!msg || !("rev" in msg) || !msg.rev) {
             continue;
