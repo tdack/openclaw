@@ -5,6 +5,7 @@ import type { ChannelSetupWizard } from "openclaw/plugin-sdk/setup";
 import {
   createStandardChannelSetupStatus,
   formatDocsLink,
+  patchScopedAccountConfig,
   patchTopLevelChannelConfigSection,
 } from "openclaw/plugin-sdk/setup";
 import { resolveBlueskyAccount } from "./accounts.js";
@@ -28,7 +29,7 @@ function getBlueskyChannelConfig(cfg: Record<string, unknown>): BlueskyChannelCo
 
 export const blueskySetupAdapter: ChannelSetupAdapter = {
   resolveAccountId: ({ accountId }) => accountId?.trim() || DEFAULT_ACCOUNT_ID,
-  applyAccountConfig: ({ cfg, input }) => {
+  applyAccountConfig: ({ cfg, accountId, input }) => {
     // inputKey mapping: token → appPassword, name → handle, url → pdsUrl
     const typedInput = input as { name?: string; token?: string; url?: string };
     const patch: Record<string, unknown> = {};
@@ -41,7 +42,13 @@ export const blueskySetupAdapter: ChannelSetupAdapter = {
     if (typedInput.url?.trim()) {
       patch.pdsUrl = typedInput.url.trim();
     }
-    return patchTopLevelChannelConfigSection({ cfg, channel, enabled: true, patch });
+    return patchScopedAccountConfig({
+      cfg,
+      channelKey: channel,
+      accountId,
+      patch,
+      ensureChannelEnabled: true,
+    });
   },
 };
 
@@ -125,12 +132,13 @@ export const blueskySetupWizard: ChannelSetupWizard = {
           clearFields: ["appPassword"],
           patch: {},
         }),
-      applySet: async ({ cfg, resolvedValue }) =>
-        patchTopLevelChannelConfigSection({
+      applySet: async ({ cfg, accountId, resolvedValue }) =>
+        patchScopedAccountConfig({
           cfg,
-          channel,
-          enabled: true,
+          channelKey: channel,
+          accountId,
           patch: { appPassword: resolvedValue },
+          ensureChannelEnabled: true,
         }),
     },
   ],
@@ -155,12 +163,13 @@ export const blueskySetupWizard: ChannelSetupWizard = {
         }
         return undefined;
       },
-      applySet: async ({ cfg, value }) =>
-        patchTopLevelChannelConfigSection({
+      applySet: async ({ cfg, accountId, value }) =>
+        patchScopedAccountConfig({
           cfg,
-          channel,
-          enabled: true,
+          channelKey: channel,
+          accountId,
           patch: { handle: value.trim() },
+          ensureChannelEnabled: true,
         }),
     },
     {
@@ -193,14 +202,28 @@ export const blueskySetupWizard: ChannelSetupWizard = {
         }
         return undefined;
       },
-      applySet: async ({ cfg, value }) =>
-        patchTopLevelChannelConfigSection({
+      applySet: async ({ cfg, accountId, value }) => {
+        const trimmed = value.trim();
+        if (accountId === DEFAULT_ACCOUNT_ID) {
+          // patchTopLevelChannelConfigSection supports clearFields, needed to
+          // remove pdsUrl from the top-level section when the user clears it.
+          return patchTopLevelChannelConfigSection({
+            cfg,
+            channel,
+            enabled: true,
+            clearFields: trimmed ? undefined : ["pdsUrl"],
+            patch: trimmed ? { pdsUrl: trimmed } : {},
+          });
+        }
+        return patchScopedAccountConfig({
           cfg,
-          channel,
-          enabled: true,
-          clearFields: value.trim() ? undefined : ["pdsUrl"],
-          patch: value.trim() ? { pdsUrl: value.trim() } : {},
-        }),
+          channelKey: channel,
+          accountId,
+          // undefined drops the key from the serialized config, effectively clearing it.
+          patch: { pdsUrl: trimmed || undefined },
+          ensureChannelEnabled: true,
+        });
+      },
     },
   ],
   disable: (cfg) =>
