@@ -51,10 +51,23 @@ export async function dispatchBlueskyInboundTurn(params: {
   const isCommand = msg.text.trim().startsWith("/");
   const commandBody = isCommand ? msg.text : undefined;
 
+  // Compute command authorization. Bluesky has no allowlist/DM-policy system, so
+  // all DM senders are always allowed. configured:true tells resolveCommandAuthorizedFromAuthorizers
+  // that there is an effective authorizer covering this sender, which returns true
+  // regardless of the useAccessGroups setting. Without this, CommandAuthorized would
+  // be false (default-deny) and slash commands would be silently dropped.
+  const commandAuthorized = rt.channel.commands.shouldComputeCommandAuthorized(msg.text, cfg)
+    ? rt.channel.commands.resolveCommandAuthorizedFromAuthorizers({
+        useAccessGroups: cfg.commands?.useAccessGroups !== false,
+        authorizers: [{ configured: true, allowed: true }],
+      })
+    : undefined;
+
   const msgCtx = rt.channel.reply.finalizeInboundContext({
     Body: msg.text,
     RawBody: msg.text,
     CommandBody: commandBody,
+    CommandAuthorized: commandAuthorized,
     From: `${CHANNEL_ID}:${msg.convoId}`,
     To: `${CHANNEL_ID}:${msg.convoId}`,
     SessionKey: sessionKey,
