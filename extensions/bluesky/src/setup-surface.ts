@@ -183,9 +183,10 @@ export const blueskySetupWizard: ChannelSetupWizard = {
         "Only set this if you use a self-hosted PDS.",
         `Leave blank to use the default: ${DEFAULT_PDS_URL}`,
       ],
-      currentValue: ({ cfg }) => {
-        const channelCfg = getBlueskyChannelConfig(cfg as Record<string, unknown>);
-        return channelCfg?.pdsUrl?.trim() ?? "";
+      currentValue: ({ cfg, accountId }) => {
+        return (
+          resolveBlueskyAccount(cfg as Record<string, unknown>, accountId).pdsUrl?.trim() ?? ""
+        );
       },
       keepPrompt: (value) => `PDS URL set to ${value}. Keep it?`,
       validate: ({ value }) => {
