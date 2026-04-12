@@ -54,6 +54,11 @@ function resolvePdsUrl(accountId: string, merged: BlueskyAccountConfig): string 
 export function listBlueskyAccountIds(cfg: Record<string, unknown>): string[] {
   const channelCfg = getChannelConfig(cfg);
   if (!channelCfg) {
+    // Env-only config: no channel section but both env credentials are present.
+    // Treat as an implicit default account so the channel starts correctly.
+    if (process.env.BLUESKY_HANDLE?.trim() && process.env.BLUESKY_APP_PASSWORD?.trim()) {
+      return [DEFAULT_ACCOUNT_ID];
+    }
     return [];
   }
   const ids = new Set<string>();
@@ -96,6 +101,11 @@ export function resolveBlueskyAccount(
 
 export function resolveDefaultBlueskyAccountId(cfg: Record<string, unknown>): string {
   const channelCfg = getChannelConfig(cfg);
+  // Explicit user preference takes priority.
+  const explicit = channelCfg?.defaultAccount?.trim();
+  if (explicit) {
+    return explicit;
+  }
   // If there are no top-level credentials, the named accounts are the real config.
   // Return the first named account so health/status picks a configured account as the default.
   const hasTopLevel =
