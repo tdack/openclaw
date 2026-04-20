@@ -55,11 +55,15 @@ type GoogleTtsProviderConfig = {
   baseUrl?: string;
   model: string;
   voiceName: string;
+  audioProfile?: string;
+  speakerName?: string;
 };
 
 type GoogleTtsProviderOverrides = {
   model?: string;
   voiceName?: string;
+  audioProfile?: string;
+  speakerName?: string;
 };
 
 type Maybe<T> = T | undefined;
@@ -172,6 +176,8 @@ function readGoogleTtsOverrides(
   return {
     model: normalizeOptionalString(overrides.model),
     voiceName: normalizeOptionalString(overrides.voiceName ?? overrides.voice),
+    audioProfile: normalizeOptionalString(overrides.audioProfile),
+    speakerName: normalizeOptionalString(overrides.speakerName),
   };
 }
 
@@ -242,6 +248,8 @@ async function synthesizeGoogleTtsPcm(params: {
   baseUrl?: string;
   model: string;
   voiceName: string;
+  audioProfile?: string;
+  speakerName?: string;
   timeoutMs: number;
 }): Promise<Buffer> {
   const { baseUrl, allowPrivateNetwork, headers, dispatcherPolicy } =
@@ -252,6 +260,14 @@ async function synthesizeGoogleTtsPcm(params: {
       transport: "http",
     });
 
+  const speechText = [
+    params.audioProfile,
+    params.speakerName ? `Speaker name: ${params.speakerName}` : undefined,
+    params.text,
+  ]
+    .filter((s) => s)
+    .join("\n");
+
   const { response: res, release } = await postJsonRequest({
     url: `${baseUrl}/models/${params.model}:generateContent`,
     headers,
@@ -259,7 +275,7 @@ async function synthesizeGoogleTtsPcm(params: {
       contents: [
         {
           role: "user",
-          parts: [{ text: params.text }],
+          parts: [{ text: speechText }],
         },
       ],
       generationConfig: {
@@ -347,6 +363,8 @@ export function buildGoogleSpeechProvider(): SpeechProviderPlugin {
         baseUrl: resolveGoogleTtsBaseUrl({ cfg: req.cfg, providerConfig: config }),
         model: normalizeGoogleTtsModel(overrides.model ?? config.model),
         voiceName: normalizeGoogleTtsVoiceName(overrides.voiceName ?? config.voiceName),
+        audioProfile: overrides.audioProfile ?? config.audioProfile,
+        speakerName: overrides.speakerName ?? config.speakerName,
         timeoutMs: req.timeoutMs,
       });
       return {
@@ -371,6 +389,8 @@ export function buildGoogleSpeechProvider(): SpeechProviderPlugin {
         baseUrl: resolveGoogleTtsBaseUrl({ cfg: req.cfg, providerConfig: config }),
         model: config.model,
         voiceName: config.voiceName,
+        audioProfile: config.audioProfile,
+        speakerName: config.speakerName,
         timeoutMs: req.timeoutMs,
       });
       return {

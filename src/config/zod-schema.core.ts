@@ -501,6 +501,14 @@ export const TtsConfigSchema = z
       .strict()
       .optional(),
     providers: z.record(z.string(), TtsProviderConfigSchema).optional(),
+    gemini: z
+      .object({
+        voice: z.string().optional(),
+        audioProfile: z.string().optional(),
+        speakerName: z.string().optional(),
+      })
+      .strict()
+      .optional(),
     prefsPath: z.string().optional(),
     maxTextLength: z.number().int().min(1).optional(),
     timeoutMs: z.number().int().min(1000).max(120000).optional(),
