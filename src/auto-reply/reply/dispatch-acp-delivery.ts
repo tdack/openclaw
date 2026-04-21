@@ -96,6 +96,7 @@ async function maybeApplyAcpTts(params: {
   inboundAudio: boolean;
   ttsAuto?: TtsAutoMode;
   skipTts?: boolean;
+  agentId?: string;
 }): Promise<ReplyPayload> {
   if (params.skipTts) {
     return params.payload;
@@ -121,6 +122,7 @@ async function maybeApplyAcpTts(params: {
     kind: params.kind,
     inboundAudio: params.inboundAudio,
     ttsAuto: params.ttsAuto,
+    agentId: params.agentId,
   });
 }
 
@@ -159,8 +161,9 @@ export function createAcpDispatchDeliveryCoordinator(params: {
   ctx: FinalizedMsgContext;
   dispatcher: ReplyDispatcher;
   inboundAudio: boolean;
-  sessionTtsAuto?: TtsAutoMode;
+  ttsAuto?: TtsAutoMode;
   ttsChannel?: string;
+  agentId?: string;
   suppressUserDelivery?: boolean;
   shouldRouteToOriginating: boolean;
   originatingChannel?: string;
@@ -298,8 +301,9 @@ export function createAcpDispatchDeliveryCoordinator(params: {
       channel: params.ttsChannel,
       kind,
       inboundAudio: params.inboundAudio,
-      ttsAuto: params.sessionTtsAuto,
+      ttsAuto: params.ttsAuto,
       skipTts: meta?.skipTts,
+      agentId: params.agentId,
     });
 
     if (params.shouldRouteToOriginating && params.originatingChannel && params.originatingTo) {
