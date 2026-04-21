@@ -74,13 +74,14 @@ function readTtsPrefsAutoMode(prefsPath: string): TtsAutoMode | undefined {
 export function shouldAttemptTtsPayload(params: {
   cfg: OpenClawConfig;
   ttsAuto?: string;
+  agentId?: string;
 }): boolean {
   const sessionAuto = normalizeTtsAutoMode(params.ttsAuto);
   if (sessionAuto) {
     return sessionAuto !== "off";
   }
 
-  const raw = params.cfg.messages?.tts;
+  const raw = resolveRawTtsConfig(params.cfg, params.agentId);
   const prefsAuto = readTtsPrefsAutoMode(resolveTtsPrefsPathValue(raw?.prefsPath));
   if (prefsAuto) {
     return prefsAuto !== "off";
