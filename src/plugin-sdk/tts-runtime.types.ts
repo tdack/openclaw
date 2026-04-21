@@ -93,6 +93,7 @@ export type MaybeApplyTtsToPayloadParams = {
   inboundAudio?: boolean;
   ttsAuto?: string;
   agentId?: string;
+  rawConfigOverride?: TtsConfig;
 };
 
 export type TtsTestFacade = {

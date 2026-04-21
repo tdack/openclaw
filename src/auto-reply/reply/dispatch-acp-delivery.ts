@@ -8,7 +8,7 @@ import {
   normalizeOptionalString,
 } from "../../shared/string-coerce.js";
 import { resolveStatusTtsSnapshot } from "../../tts/status-config.js";
-import { resolveConfiguredTtsMode } from "../../tts/tts-config.js";
+import { resolveConfiguredTtsMode, resolveRawTtsConfig } from "../../tts/tts-config.js";
 import type { FinalizedMsgContext } from "../templating.js";
 import type { ReplyPayload } from "../types.js";
 import type { ReplyDispatchKind, ReplyDispatcher } from "./reply-dispatcher.types.js";
@@ -115,14 +115,16 @@ async function maybeApplyAcpTts(params: {
     return params.payload;
   }
   const { maybeApplyTtsToPayload } = await loadDispatchAcpTtsRuntime();
+  const rawConfigOverride = resolveRawTtsConfig(params.cfg, params.agentId);
   return await maybeApplyTtsToPayload({
     payload: params.payload,
     cfg: params.cfg,
+    agentId: params.agentId,
     channel: params.channel,
     kind: params.kind,
     inboundAudio: params.inboundAudio,
     ttsAuto: params.ttsAuto,
-    agentId: params.agentId,
+    rawConfigOverride,
   });
 }
 
