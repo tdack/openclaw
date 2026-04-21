@@ -367,11 +367,15 @@ export function resolveTtsAutoMode(params: {
   return params.config.auto;
 }
 
-function resolveEffectiveTtsAutoState(params: { cfg: OpenClawConfig; sessionAuto?: string }): {
+function resolveEffectiveTtsAutoState(params: {
+  cfg: OpenClawConfig;
+  sessionAuto?: string;
+  rawConfigOverride?: TtsConfig;
+}): {
   autoMode: TtsAutoMode;
   prefsPath: string;
 } {
-  const raw: TtsConfig = params.cfg.messages?.tts ?? {};
+  const raw: TtsConfig = params.rawConfigOverride ?? params.cfg.messages?.tts ?? {};
   const prefsPath = resolveTtsPrefsPathValue(raw.prefsPath);
   const sessionAuto = normalizeTtsAutoMode(params.sessionAuto);
   if (sessionAuto) {
@@ -1036,6 +1040,7 @@ export async function maybeApplyTtsToPayload(params: {
   const { autoMode, prefsPath } = resolveEffectiveTtsAutoState({
     cfg: params.cfg,
     sessionAuto: params.ttsAuto,
+    rawConfigOverride: params.rawConfigOverride,
   });
   if (autoMode === "off") {
     return params.payload;

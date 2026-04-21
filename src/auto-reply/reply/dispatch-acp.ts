@@ -184,11 +184,12 @@ async function finalizeAcpTurnOutput(params: {
   await params.delivery.settleVisibleText();
   let queuedFinal =
     params.delivery.hasDeliveredVisibleText() && !params.delivery.hasFailedVisibleTextDelivery();
-  const ttsMode = resolveConfiguredTtsMode(params.cfg);
+  const ttsMode = resolveConfiguredTtsMode(params.cfg, params.agentId);
   const accumulatedBlockText = params.delivery.getAccumulatedBlockText();
   const hasAccumulatedBlockText = accumulatedBlockText.trim().length > 0;
   const ttsStatus = resolveStatusTtsSnapshot({
     cfg: params.cfg,
+    agentId: params.agentId,
     sessionAuto: params.sessionTtsAuto,
   });
   const canAttemptFinalTts =
