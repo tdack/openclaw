@@ -992,14 +992,17 @@ export async function dispatchReplyFromConfig(
                   }
                 : context;
             await params.replyOptions?.onBlockReplyQueued?.(payload, queuedContext);
-            const ttsPayload = await maybeApplyTtsToReplyPayload({
-              payload,
-              cfg,
-              channel: ttsChannel,
-              kind: "block",
-              inboundAudio,
-              ttsAuto: sessionTtsAuto,
-            });
+            const ttsPayload = await maybeApplyTtsToReplyPayload(
+              {
+                payload,
+                cfg,
+                channel: ttsChannel,
+                kind: "block",
+                inboundAudio,
+                ttsAuto: sessionTtsAuto,
+              },
+              sessionAgentId,
+            );
             const normalizedPayload = await normalizeReplyMediaPayload(ttsPayload);
             if (shouldRouteToOriginating) {
               await sendPayloadAsync(normalizedPayload, context?.abortSignal, false);
@@ -1079,14 +1082,17 @@ export async function dispatchReplyFromConfig(
         accumulatedBlockText.trim()
       ) {
         try {
-          const ttsSyntheticReply = await maybeApplyTtsToReplyPayload({
-            payload: { text: accumulatedBlockText },
-            cfg,
-            channel: ttsChannel,
-            kind: "final",
-            inboundAudio,
-            ttsAuto: sessionTtsAuto,
-          });
+          const ttsSyntheticReply = await maybeApplyTtsToReplyPayload(
+            {
+              payload: { text: accumulatedBlockText },
+              cfg,
+              channel: ttsChannel,
+              kind: "final",
+              inboundAudio,
+              ttsAuto: sessionTtsAuto,
+            },
+            sessionAgentId,
+          );
           // Only send if TTS was actually applied (mediaUrl exists)
           if (ttsSyntheticReply.mediaUrl) {
             // Send TTS-only payload (no text, just audio) so it doesn't duplicate the block content
